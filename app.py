@@ -63,8 +63,6 @@ except FileNotFoundError:
 def index():
     return render_template("index.html", todo_list=todo_list)
 
-if __name__ == "__main__":
-    app.run(debug=True)   
 
 @app.route("/add", methods=["POST"])
 def add_todo():
@@ -77,3 +75,6 @@ def save_todo_list():
     with open(todo_file, "w") as file:
         for todo in todo_list:
             file.write(todo + "\n")
+
+if __name__ == "__main__":
+    app.run(debug=True)   
