@@ -6,6 +6,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { addEvent, updateEvent } from '../storage';
 import { Event, Reminder, Recurrence, RecurrenceFrequency } from '../types';
 import { COLORS, EVENT_COLORS } from '../utils/colors';
+import { log, error as logError } from '../utils/debug';
 
 function makeId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -85,12 +86,18 @@ export default function AddEventScreen() {
       createdAt: existing?.createdAt ?? new Date().toISOString(),
     };
 
-    if (existing) {
-      await updateEvent(event);
-    } else {
-      await addEvent(event);
+    try {
+      log('handleSave event:', event.id, event.title);
+      if (existing) {
+        await updateEvent(event);
+      } else {
+        await addEvent(event);
+      }
+      navigation.goBack();
+    } catch (e) {
+      logError('handleSave event failed', e);
+      Alert.alert('Fehler', 'Speichern fehlgeschlagen. Bitte erneut versuchen.');
     }
-    navigation.goBack();
   };
 
   return (

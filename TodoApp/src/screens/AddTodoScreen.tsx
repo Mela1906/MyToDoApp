@@ -7,6 +7,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { addTodo, updateTodo } from '../storage';
 import { Todo, Subtask, Priority, EnergyLevel } from '../types';
 import { COLORS, PRIORITY_COLOR, PRIORITY_LABEL, ENERGY_LABEL } from '../utils/colors';
+import { log, error as logError } from '../utils/debug';
 
 function makeId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -79,12 +80,18 @@ export default function AddTodoScreen() {
       createdAt: existing?.createdAt ?? new Date().toISOString(),
     };
 
-    if (existing) {
-      await updateTodo(todo);
-    } else {
-      await addTodo(todo);
+    try {
+      log('handleSave todo:', todo.id, todo.title);
+      if (existing) {
+        await updateTodo(todo);
+      } else {
+        await addTodo(todo);
+      }
+      navigation.goBack();
+    } catch (e) {
+      logError('handleSave failed', e);
+      Alert.alert('Fehler', 'Speichern fehlgeschlagen. Bitte erneut versuchen.');
     }
-    navigation.goBack();
   };
 
   return (
