@@ -131,7 +131,7 @@ export default function AddEventScreen() {
       <Label text="Startdatum und -uhrzeit *" />
       <TextInput
         style={styles.input}
-        placeholder="JJJJ-MM-TTTHH:MM"
+        placeholder="JJJJ-MM-TTHH:MM"
         value={startDate}
         onChangeText={setStartDate}
         placeholderTextColor={COLORS.subtext}
@@ -151,7 +151,7 @@ export default function AddEventScreen() {
           <Label text="Enddatum und -uhrzeit (optional)" />
           <TextInput
             style={styles.input}
-            placeholder="JJJJ-MM-TTTHH:MM"
+            placeholder="JJJJ-MM-TTHH:MM"
             value={endDate}
             onChangeText={setEndDate}
             placeholderTextColor={COLORS.subtext}
