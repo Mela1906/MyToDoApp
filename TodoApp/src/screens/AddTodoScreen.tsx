@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, ScrollView,
-  TouchableOpacity, Alert,
+  TouchableOpacity, Alert
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { addTodo, updateTodo } from '../storage';
 import { Todo, Subtask, Priority, EnergyLevel } from '../types';
 import { COLORS, PRIORITY_COLOR, PRIORITY_LABEL, ENERGY_LABEL } from '../utils/colors';
@@ -26,7 +27,10 @@ export default function AddTodoScreen() {
   const [description, setDescription] = useState(existing?.description ?? '');
   const [priority, setPriority] = useState<Priority>(existing?.priority ?? 'medium');
   const [energy, setEnergy] = useState<EnergyLevel>(existing?.energyLevel ?? 'medium');
-  const [deadline, setDeadline] = useState(existing?.deadline ? existing.deadline.slice(0, 10) : '');
+  const [deadline, setDeadline] = useState<Date | undefined>(
+    existing?.deadline ? new Date(existing.deadline) : undefined
+  );
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [estimatedMinutes, setEstimatedMinutes] = useState(
     existing?.estimatedMinutes?.toString() ?? ''
   );
@@ -60,6 +64,7 @@ export default function AddTodoScreen() {
   };
 
   const handleSave = async () => {
+    console.log('handleSave called. title:', JSON.stringify(title));
     if (!title.trim()) {
       Alert.alert('Fehler', 'Bitte einen Titel eingeben.');
       return;
@@ -71,7 +76,7 @@ export default function AddTodoScreen() {
       description: description.trim() || undefined,
       priority,
       energyLevel: energy,
-      deadline: deadline ? new Date(deadline).toISOString() : undefined,
+      deadline: deadline ? new Date(deadline.getFullYear(), deadline.getMonth(), deadline.getDate()).toISOString() : undefined,
       estimatedMinutes: estimatedMinutes ? parseInt(estimatedMinutes) : undefined,
       completed: existing?.completed ?? false,
       completedAt: existing?.completedAt,
@@ -84,13 +89,25 @@ export default function AddTodoScreen() {
       log('handleSave todo:', todo.id, todo.title);
       if (existing) {
         await updateTodo(todo);
+        Alert.alert('Erfolg', 'Todo aktualisiert!');
       } else {
         await addTodo(todo);
+        Alert.alert('Erfolg', 'Todo erstellt!');
       }
-      navigation.goBack();
+      setTimeout(() => {
+        navigation.goBack();
+      }, 500);
     } catch (e) {
-      logError('handleSave failed', e);
-      Alert.alert('Fehler', 'Speichern fehlgeschlagen. Bitte erneut versuchen.');
+      logError('handleSave failed:', e);
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      Alert.alert('Fehler beim Speichern', errorMsg || 'Bitte erneut versuchen.');
+    }
+  };
+
+  const handleDateChange = (event: any, selectedDate: Date | undefined) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setDeadline(selectedDate);
     }
   };
 
@@ -149,14 +166,23 @@ export default function AddTodoScreen() {
       </View>
 
       <Label text="Deadline (optional)" />
-      <TextInput
+      <TouchableOpacity
         style={styles.input}
-        placeholder="JJJJ-MM-TT"
-        value={deadline}
-        onChangeText={setDeadline}
-        keyboardType="numeric"
-        placeholderTextColor={COLORS.subtext}
-      />
+        onPress={() => setShowDatePicker(true)}
+      >
+        <Text style={{ color: deadline ? COLORS.text : COLORS.subtext, fontSize: 15 }}>
+          {deadline ? deadline.toLocaleDateString('de-DE') : 'Datum wählen...'}
+        </Text>
+      </TouchableOpacity>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={deadline || new Date()}
+          mode="date"
+          display="default"
+          onChange={handleDateChange}
+        />
+      )}
 
       <Label text="Zeitschätzung (Minuten)" />
       <TextInput
@@ -180,6 +206,24 @@ export default function AddTodoScreen() {
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* Benutzerdefinierte Tags anzeigen */}
+      {tags.filter(t => !COMMON_TAGS.includes(t)).length > 0 && (
+        <View style={styles.chipRow}>
+          {tags.filter(t => !COMMON_TAGS.includes(t)).map(tag => (
+            <TouchableOpacity
+              key={tag}
+              style={[styles.chip, styles.chipSelected]}
+              onPress={() => toggleTag(tag)}
+            >
+              <Text style={[styles.chipText, styles.chipTextActive]}>
+                {tag} ✕
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
       <View style={styles.row}>
         <TextInput
           style={[styles.input, { flex: 1 }]}
