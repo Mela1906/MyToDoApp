@@ -53,9 +53,9 @@ export async function deleteEvent(id: string): Promise<void> {
 export async function getTodos(): Promise<Todo[]> {
   try {
     const raw = await AsyncStorage.getItem(KEYS.todos);
-    const result = raw ? (JSON.parse(raw) as Todo[]) : [];
-    log('getTodos →', result.length, 'items');
-    return result;
+    const todos = raw ? (JSON.parse(raw) as Todo[]) : [];
+    log('getTodos →', todos.length, 'items');
+    return todos;
   } catch (e) {
     error('getTodos failed', e);
     return [];

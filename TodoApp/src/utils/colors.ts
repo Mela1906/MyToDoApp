@@ -10,20 +10,6 @@ export const COLORS = {
   border: '#E5E7EB',
 };
 
-export const PRIORITY_COLOR: Record<string, string> = {
-  urgent: '#FF4444',
-  high: '#FF8C00',
-  medium: '#6C63FF',
-  low: '#43D39E',
-};
-
-export const PRIORITY_LABEL: Record<string, string> = {
-  urgent: 'Dringend',
-  high: 'Hoch',
-  medium: 'Mittel',
-  low: 'Niedrig',
-};
-
 export const ENERGY_LABEL: Record<string, string> = {
   high: 'Viel Energie',
   medium: 'Mittlere Energie',

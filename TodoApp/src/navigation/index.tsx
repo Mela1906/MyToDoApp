@@ -1,8 +1,13 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import {
+  createNavigationContainerRef,
+  NavigationContainer,
+  NavigatorScreenParams,
+} from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Text } from 'react-native';
+import { Event, Todo } from '../types';
 
 import TodayScreen from '../screens/TodayScreen';
 import TodosScreen from '../screens/TodosScreen';
@@ -12,7 +17,35 @@ import AddEventScreen from '../screens/AddEventScreen';
 import { COLORS } from '../utils/colors';
 
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
+
+type TodosStackParamList = {
+  TodosList: undefined;
+  AddTodo: { todo?: Todo } | undefined;
+};
+
+type EventsStackParamList = {
+  EventsList: undefined;
+  AddEvent: { event?: Event } | undefined;
+};
+
+type RootTabParamList = {
+  Heute: undefined;
+  Todos: NavigatorScreenParams<TodosStackParamList>;
+  Termine: NavigatorScreenParams<EventsStackParamList>;
+};
+
+export const navigationRef = createNavigationContainerRef<RootTabParamList>();
+let pendingEventsOverviewNavigation = false;
+
+export function navigateToEventsOverview() {
+  if (!navigationRef.isReady()) {
+    pendingEventsOverviewNavigation = true;
+    return;
+  }
+
+  navigationRef.navigate('Termine', { screen: 'EventsList' });
+}
 
 function TodosStack() {
   return (
@@ -34,7 +67,15 @@ function EventsStack() {
 
 export default function AppNavigator() {
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => {
+        if (pendingEventsOverviewNavigation) {
+          pendingEventsOverviewNavigation = false;
+          navigateToEventsOverview();
+        }
+      }}
+    >
       <Tab.Navigator
         screenOptions={{
           headerShown: false,

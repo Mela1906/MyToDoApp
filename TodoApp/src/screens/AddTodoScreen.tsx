@@ -6,17 +6,22 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { addTodo, updateTodo } from '../storage';
-import { Todo, Subtask, Priority, EnergyLevel } from '../types';
-import { COLORS, PRIORITY_COLOR, PRIORITY_LABEL, ENERGY_LABEL } from '../utils/colors';
+import { Todo, Subtask, EnergyLevel } from '../types';
+import { COLORS, ENERGY_LABEL } from '../utils/colors';
 import { log, error as logError } from '../utils/debug';
 
 function makeId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-const PRIORITIES: Priority[] = ['low', 'medium', 'high', 'urgent'];
 const ENERGIES: EnergyLevel[] = ['low', 'medium', 'high'];
 const COMMON_TAGS = ['@Zuhause', '@Arbeit', '@Unterwegs', '@Einkauf', '@Telefon'];
+
+function startOfToday(): Date {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
 
 export default function AddTodoScreen() {
   const navigation = useNavigation();
@@ -25,7 +30,6 @@ export default function AddTodoScreen() {
 
   const [title, setTitle] = useState(existing?.title ?? '');
   const [description, setDescription] = useState(existing?.description ?? '');
-  const [priority, setPriority] = useState<Priority>(existing?.priority ?? 'medium');
   const [energy, setEnergy] = useState<EnergyLevel>(existing?.energyLevel ?? 'medium');
   const [deadline, setDeadline] = useState<Date | undefined>(
     existing?.deadline ? new Date(existing.deadline) : undefined
@@ -70,13 +74,20 @@ export default function AddTodoScreen() {
       return;
     }
 
+    if (!deadline) {
+      Alert.alert('Deadline fehlt', 'Wann soll die Aufgabe fertig sein?', [
+        { text: 'Abbrechen', style: 'cancel' },
+        { text: 'Datum wählen', onPress: () => setShowDatePicker(true) },
+      ]);
+      return;
+    }
+
     const todo: Todo = {
       id: existing?.id ?? makeId(),
       title: title.trim(),
       description: description.trim() || undefined,
-      priority,
       energyLevel: energy,
-      deadline: deadline ? new Date(deadline.getFullYear(), deadline.getMonth(), deadline.getDate()).toISOString() : undefined,
+      deadline: new Date(deadline.getFullYear(), deadline.getMonth(), deadline.getDate()).toISOString(),
       estimatedMinutes: estimatedMinutes ? parseInt(estimatedMinutes) : undefined,
       completed: existing?.completed ?? false,
       completedAt: existing?.completedAt,
@@ -135,21 +146,6 @@ export default function AddTodoScreen() {
         placeholderTextColor={COLORS.subtext}
       />
 
-      <Label text="Priorität" />
-      <View style={styles.chipRow}>
-        {PRIORITIES.map(p => (
-          <TouchableOpacity
-            key={p}
-            style={[styles.chip, { borderColor: PRIORITY_COLOR[p] }, priority === p && { backgroundColor: PRIORITY_COLOR[p] }]}
-            onPress={() => setPriority(p)}
-          >
-            <Text style={[styles.chipText, priority === p && styles.chipTextActive]}>
-              {PRIORITY_LABEL[p]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
       <Label text="Energie-Level" />
       <View style={styles.chipRow}>
         {ENERGIES.map(e => (
@@ -165,7 +161,7 @@ export default function AddTodoScreen() {
         ))}
       </View>
 
-      <Label text="Deadline (optional)" />
+      <Label text="Deadline *" />
       <TouchableOpacity
         style={styles.input}
         onPress={() => setShowDatePicker(true)}
@@ -177,7 +173,7 @@ export default function AddTodoScreen() {
 
       {showDatePicker && (
         <DateTimePicker
-          value={deadline || new Date()}
+          value={deadline ?? startOfToday()}
           mode="date"
           display="default"
           onChange={handleDateChange}

@@ -1,23 +1,28 @@
 import React, { useCallback, useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Alert, Modal, Pressable,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Modal, Pressable,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getTodos, updateTodo, deleteTodo } from '../storage';
-import { Todo, SortMode } from '../types';
-import { sortTodos, formatDeadline, isOverdue } from '../utils/sort';
-import { COLORS, PRIORITY_COLOR, PRIORITY_LABEL, ENERGY_LABEL } from '../utils/colors';
+import { EnergyLevel, Todo } from '../types';
+import { sortTodos, formatDeadline, formatDuration, isOverdue, TodoSortMode } from '../utils/sort';
+import { COLORS, ENERGY_LABEL } from '../utils/colors';
 
-const SORT_OPTIONS: { label: string; value: SortMode }[] = [
-  { label: 'Priorität', value: 'priority' },
+const SORT_OPTIONS: { label: string; value: TodoSortMode }[] = [
   { label: 'Deadline', value: 'deadline' },
-  { label: 'Priorität + Deadline', value: 'priority_deadline' },
+  { label: 'Zeiteinschätzung', value: 'estimatedMinutes' },
+  { label: 'Energie-Level', value: 'energyLevel' },
 ];
+
+const ENERGY_COLOR: Record<EnergyLevel, string> = {
+  low: COLORS.success,
+  medium: COLORS.warning,
+  high: COLORS.danger,
+};
 
 export default function TodosScreen() {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [sortMode, setSortMode] = useState<SortMode>('priority_deadline');
+  const [sortMode, setSortMode] = useState<TodoSortMode>('deadline');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const navigation = useNavigation<any>();
 
@@ -61,7 +66,7 @@ export default function TodosScreen() {
     ]);
   };
 
-  const applySort = (mode: SortMode) => {
+  const applySort = (mode: TodoSortMode) => {
     setSortMode(mode);
     setTodos(prev => sortTodos(prev, mode));
     setSortMenuOpen(false);
@@ -73,7 +78,7 @@ export default function TodosScreen() {
         <Text style={styles.screenTitle}>Todos</Text>
         <TouchableOpacity style={styles.sortBtn} onPress={() => setSortMenuOpen(true)}>
           <Text style={styles.sortBtnText}>
-            Sortierung: {SORT_OPTIONS.find(s => s.value === sortMode)?.label}
+            Sortierung: {SORT_OPTIONS.find(option => option.value === sortMode)?.label}
           </Text>
         </TouchableOpacity>
       </View>
@@ -104,20 +109,21 @@ export default function TodosScreen() {
         <Pressable style={styles.overlay} onPress={() => setSortMenuOpen(false)}>
           <View style={styles.menu}>
             <Text style={styles.menuTitle}>Sortieren nach</Text>
-            {SORT_OPTIONS.map(opt => (
+            {SORT_OPTIONS.map(option => (
               <TouchableOpacity
-                key={opt.value}
-                style={[styles.menuItem, sortMode === opt.value && styles.menuItemActive]}
-                onPress={() => applySort(opt.value)}
+                key={option.value}
+                style={[styles.menuItem, sortMode === option.value && styles.menuItemActive]}
+                onPress={() => applySort(option.value)}
               >
-                <Text style={[styles.menuItemText, sortMode === opt.value && styles.menuItemTextActive]}>
-                  {opt.label}
+                <Text style={[styles.menuItemText, sortMode === option.value && styles.menuItemTextActive]}>
+                  {option.label}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
         </Pressable>
       </Modal>
+
     </View>
   );
 }
@@ -134,52 +140,76 @@ function TodoCard({ todo, onToggle, onToggleSubtask, onEdit, onDelete }: TodoCar
   const [expanded, setExpanded] = useState(false);
   const completedSubs = todo.subtasks.filter(s => s.completed).length;
   const progress = todo.subtasks.length > 0 ? completedSubs / todo.subtasks.length : null;
+  const deadlineDate = new Date(todo.deadline);
 
   return (
-    <View style={[styles.card, todo.completed && styles.cardDone]}>
+    <View
+      style={[
+        styles.card,
+        { borderLeftColor: ENERGY_COLOR[todo.energyLevel] },
+        todo.completed && styles.cardDone,
+      ]}
+    >
       <View style={styles.cardRow}>
         <TouchableOpacity onPress={onToggle} style={styles.checkbox}>
           <Text style={styles.checkboxText}>{todo.completed ? '✅' : '⬜'}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.cardContent} onPress={() => setExpanded(!expanded)}>
-          <View style={styles.cardHeader}>
+        <TouchableOpacity style={styles.cardContent} onPress={onEdit}>
+          <View style={styles.dateBlock}>
+            <Text style={styles.dateDay}>{deadlineDate.toLocaleDateString('de-DE', { day: '2-digit' })}</Text>
+            <Text style={styles.dateMonth}>{deadlineDate.toLocaleDateString('de-DE', { month: 'short' })}</Text>
+          </View>
+
+          <View style={styles.cardBody}>
             <Text style={[styles.cardTitle, todo.completed && styles.strikethrough]} numberOfLines={2}>
               {todo.title}
             </Text>
-            <View style={[styles.priorityBadge, { backgroundColor: PRIORITY_COLOR[todo.priority] }]}>
-              <Text style={styles.priorityText}>{PRIORITY_LABEL[todo.priority]}</Text>
-            </View>
-          </View>
-
-          {todo.deadline && (
             <Text style={[styles.deadline, isOverdue(todo.deadline) && !todo.completed && styles.overdue]}>
-              📅 {formatDeadline(todo.deadline)}
+              {formatDeadline(todo.deadline)}
             </Text>
-          )}
 
-          {todo.contextTags.length > 0 && (
-            <View style={styles.tags}>
-              {todo.contextTags.map(tag => (
-                <View key={tag} style={styles.tag}>
-                  <Text style={styles.tagText}>{tag}</Text>
-                </View>
-              ))}
+            <View style={styles.metaRow}>
+              <View style={styles.metaChip}>
+                <Text style={styles.metaText}>⏱ {formatDuration(todo.estimatedMinutes)}</Text>
+              </View>
+              <View style={[styles.metaChip, { backgroundColor: `${ENERGY_COLOR[todo.energyLevel]}20` }]}>
+                <Text style={[styles.metaText, { color: ENERGY_COLOR[todo.energyLevel] }]}>
+                  ⚡ {ENERGY_LABEL[todo.energyLevel]}
+                </Text>
+              </View>
             </View>
-          )}
 
-          {progress !== null && (
-            <View style={styles.progressContainer}>
-              <View style={[styles.progressBar, { width: `${progress * 100}%` }]} />
-              <Text style={styles.progressText}>{completedSubs}/{todo.subtasks.length}</Text>
-            </View>
-          )}
+            {todo.contextTags.length > 0 && (
+              <View style={styles.tags}>
+                {todo.contextTags.map(tag => (
+                  <View key={tag} style={styles.tag}>
+                    <Text style={styles.tagText}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {progress !== null && (
+              <View style={styles.progressContainer}>
+                <View style={[styles.progressBar, { width: `${progress * 100}%` }]} />
+                <Text style={styles.progressText}>{completedSubs}/{todo.subtasks.length}</Text>
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
 
         <View style={styles.cardActions}>
-          <TouchableOpacity onPress={onEdit} style={styles.actionBtn}>
-            <Text>✏️</Text>
-          </TouchableOpacity>
+          {todo.subtasks.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setExpanded(value => !value)}
+              style={styles.actionBtn}
+              accessibilityRole="button"
+              accessibilityLabel={expanded ? 'Unteraufgaben ausblenden' : 'Unteraufgaben anzeigen'}
+            >
+              <Text>{expanded ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={onDelete} style={styles.actionBtn}>
             <Text>🗑️</Text>
           </TouchableOpacity>
@@ -220,20 +250,30 @@ const styles = StyleSheet.create({
   sortBtnText: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
   card: {
     backgroundColor: COLORS.card, borderRadius: 14, marginHorizontal: 16, marginBottom: 12,
-    padding: 14, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+    padding: 14, borderLeftWidth: 4, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
   },
   cardDone: { opacity: 0.55 },
   cardRow: { flexDirection: 'row', alignItems: 'flex-start' },
   checkbox: { marginRight: 10, marginTop: 2 },
   checkboxText: { fontSize: 20 },
-  cardContent: { flex: 1 },
+  cardContent: { flex: 1, flexDirection: 'row', gap: 12 },
+  dateBlock: {
+    width: 48, minHeight: 54, alignItems: 'center', justifyContent: 'center',
+    borderRightWidth: 1, borderRightColor: COLORS.border, paddingRight: 8,
+  },
+  dateDay: { fontSize: 20, fontWeight: '700', color: COLORS.text },
+  dateMonth: { fontSize: 12, fontWeight: '600', color: COLORS.subtext, textTransform: 'capitalize' },
+  cardBody: { flex: 1 },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   cardTitle: { flex: 1, fontSize: 16, fontWeight: '600', color: COLORS.text },
   strikethrough: { textDecorationLine: 'line-through', color: COLORS.subtext },
-  priorityBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  priorityText: { fontSize: 11, color: '#fff', fontWeight: '700' },
-  deadline: { fontSize: 13, color: COLORS.subtext, marginTop: 4 },
+  deadline: { fontSize: 13, color: COLORS.subtext, marginTop: 4, textTransform: 'capitalize' },
   overdue: { color: COLORS.danger, fontWeight: '600' },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  metaChip: {
+    backgroundColor: COLORS.bg, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4,
+  },
+  metaText: { fontSize: 12, fontWeight: '600', color: COLORS.subtext },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
   tag: { backgroundColor: '#EEF2FF', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
   tagText: { fontSize: 12, color: COLORS.primary },

@@ -6,8 +6,8 @@ import {
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getEvents, getTodos } from '../storage';
 import { Event, Todo } from '../types';
-import { formatDeadline, isOverdue } from '../utils/sort';
-import { COLORS, PRIORITY_COLOR, PRIORITY_LABEL } from '../utils/colors';
+import { formatDeadline, isOverdue, sortTodos } from '../utils/sort';
+import { COLORS } from '../utils/colors';
 
 const { width } = Dimensions.get('window');
 
@@ -47,9 +47,7 @@ export default function TodayScreen() {
   const openTodos = allTodos.filter(t => !t.completed);
   const doneTodos = allTodos.filter(t => t.completed).length;
   const overdueTodos = openTodos.filter(t => isOverdue(t.deadline));
-  const urgentFocus = openTodos
-    .filter(t => t.priority === 'urgent' || t.priority === 'high' || isOverdue(t.deadline))
-    .slice(0, 4);
+  const focusTodos = sortTodos(openTodos).slice(0, 4);
   const completionRate = allTodos.length > 0 ? Math.round((doneTodos / allTodos.length) * 100) : 0;
 
   const now = new Date();
@@ -103,10 +101,10 @@ export default function TodayScreen() {
           onAction={() => navigation.navigate('Todos')}
           actionLabel="Alle Todos"
         />
-        {urgentFocus.length === 0 ? (
+        {focusTodos.length === 0 ? (
           <EmptyCard text="Alles erledigt – super gemacht! 🌟" />
         ) : (
-          urgentFocus.map(todo => <FocusTodoCard key={todo.id} todo={todo} />)
+          focusTodos.map(todo => <FocusTodoCard key={todo.id} todo={todo} />)
         )}
 
         {/* ─── PROGRESS RING ──────────────────────────── */}
@@ -202,28 +200,23 @@ function TimelineEvent({ event, isLast }: { event: Event; isLast: boolean }) {
 function FocusTodoCard({ todo }: { todo: Todo }) {
   const completedSubs = todo.subtasks.filter(s => s.completed).length;
   const progress = todo.subtasks.length > 0 ? completedSubs / todo.subtasks.length : null;
-  const pColor = PRIORITY_COLOR[todo.priority];
+  const accentColor = isOverdue(todo.deadline) ? COLORS.danger : COLORS.primary;
 
   return (
-    <View style={[styles.focusCard, { borderTopColor: pColor }]}>
+    <View style={[styles.focusCard, { borderTopColor: accentColor }]}>
       <View style={styles.focusCardTop}>
-        <View style={[styles.focusPriorityDot, { backgroundColor: pColor }]} />
+        <View style={[styles.focusPriorityDot, { backgroundColor: accentColor }]} />
         <Text style={styles.focusTitle} numberOfLines={2}>{todo.title}</Text>
-        <View style={[styles.focusBadge, { backgroundColor: pColor + '20' }]}>
-          <Text style={[styles.focusBadgeText, { color: pColor }]}>{PRIORITY_LABEL[todo.priority]}</Text>
-        </View>
       </View>
 
-      {todo.deadline && (
-        <Text style={[styles.focusDeadline, isOverdue(todo.deadline) && styles.focusOverdue]}>
-          📅 {formatDeadline(todo.deadline)}
-        </Text>
-      )}
+      <Text style={[styles.focusDeadline, isOverdue(todo.deadline) && styles.focusOverdue]}>
+        📅 {formatDeadline(todo.deadline)}
+      </Text>
 
       {progress !== null && (
         <View style={styles.focusProgress}>
           <View style={styles.focusProgressTrack}>
-            <View style={[styles.focusProgressFill, { width: `${progress * 100}%` as any, backgroundColor: pColor }]} />
+            <View style={[styles.focusProgressFill, { width: `${progress * 100}%` as any, backgroundColor: accentColor }]} />
           </View>
           <Text style={styles.focusProgressText}>{completedSubs}/{todo.subtasks.length}</Text>
         </View>
@@ -328,8 +321,6 @@ const styles = StyleSheet.create({
   focusCardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
   focusPriorityDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
   focusTitle: { flex: 1, fontSize: 15, fontWeight: '600', color: COLORS.text },
-  focusBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
-  focusBadgeText: { fontSize: 11, fontWeight: '700' },
   focusDeadline: { fontSize: 13, color: COLORS.subtext, marginBottom: 6 },
   focusOverdue: { color: COLORS.danger, fontWeight: '600' },
   focusProgress: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },

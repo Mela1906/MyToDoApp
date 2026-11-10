@@ -20,6 +20,7 @@ import { addEvent, updateEvent } from '../storage';
 import { Event, Reminder, Recurrence, RecurrenceFrequency } from '../types';
 import { COLORS, EVENT_COLORS } from '../utils/colors';
 import { log, error as logError } from '../utils/debug';
+import { syncEventReminders } from '../utils/eventNotifications';
 
 function makeId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -139,13 +140,26 @@ export default function AddEventScreen() {
       } else {
         await addEvent(event);
       }
-
-      navigation.goBack();
     } catch (e) {
       logError('handleSave event failed', e);
       Alert.alert(
         'Fehler',
         'Speichern fehlgeschlagen. Bitte erneut versuchen.'
+      );
+      return;
+    }
+
+    try {
+      await syncEventReminders(event.reminders.length > 0);
+      navigation.goBack();
+    } catch (e) {
+      logError('event reminder scheduling failed', e);
+      const errorMessage =
+        e instanceof Error ? e.message : 'Bitte prüfe die Benachrichtigungseinstellungen.';
+      Alert.alert(
+        'Termin gespeichert',
+        `Der Termin wurde gespeichert, aber die Erinnerung konnte nicht eingerichtet werden. ${errorMessage}`,
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     }
   };

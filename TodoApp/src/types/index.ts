@@ -1,4 +1,3 @@
-export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 export type EnergyLevel = 'low' | 'medium' | 'high';
 export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -41,9 +40,8 @@ export interface Todo {
   id: string;
   title: string;
   description?: string;
-  priority: Priority;
   energyLevel: EnergyLevel;
-  deadline?: string; // ISO string
+  deadline: string; // ISO string
   estimatedMinutes?: number;
   completed: boolean;
   completedAt?: string;
@@ -60,5 +58,3 @@ export interface Category {
   color: string;
   icon: string;
 }
-
-export type SortMode = 'priority' | 'deadline' | 'priority_deadline';
